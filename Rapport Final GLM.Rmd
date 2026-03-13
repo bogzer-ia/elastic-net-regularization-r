@@ -1,0 +1,322 @@
+---
+title: "Report - Coefficients of Determination in Logistic Regression"
+author: "BOGA"
+date: "`r Sys.Date()`"
+output: word_document
+---
+**1. Introduction**
+
+In linear regression, the coefficient of determination \(R^2\) summarizes the proportion of variance in the dependent variable explained by the predictors. This interpretation relies on least-squares estimation and continuous outcomes. Logistic regression, however, models a binary response using maximum likelihood estimation, making the direct interpretation of variance explained inappropriate. As a result, no exact equivalent to the classical \(R^2\) exists for logistic regression.
+
+To address this, numerous *pseudo-\(R^2\)* measures have been proposed. These statistics attempt to mimic, to varying degrees, the conceptual meaning of explained variation. They differ substantially in their definitions, mathematical properties, and sensitivity to the *base rate*—the proportion of positive outcomes in the data. Because of these differences, two logistic regression models may appear to have substantially different levels of fit depending on the chosen pseudo-\(R^2\).
+
+Menard (2000) provides a systematic review of these measures, distinguishing those based on continuous predictions (R² analogs) from those based on discrete classifications (indexes of predictive efficiency). His analysis highlights that some pseudo-\(R^2\) measures behave inconsistently across different prevalence levels and may lead to contradictory conclusions about model fit. This raises the practical question: **Which \(R^2\) analog provides the most stable and interpretable assessment of logistic regression?**
+
+ **1.1 Objectives**
+
+The objective of this project is to reproduce Menard’s main conclusions through controlled simulations. Specifically, the goals are to:
+
+- Present the major pseudo-\(R^2\) measures used in logistic regression  
+- Summarize their conceptual and mathematical properties  
+- Evaluate their empirical behavior under three different base-rate scenarios (1%, 10%, 50%)  
+- Compare the sensitivity of each measure to changes in prevalence  
+- Discuss the strengths and limitations of the measures relative to Menard’s findings  
+
+The broader aim is to identify which pseudo-\(R^2\) provides the most reliable assessment of model fit when the distribution of the dependent variable varies.
+
+
+**2. Methods**
+
+ **2.1 Methodological Context**
+
+Logistic regression models a binary response through the logit link and maximum likelihood estimation, which prevents the direct use of variance-based measures. Consequently, several pseudo-\(R^2\) statistics have been proposed. Menard evaluates them according to their similarity to the classical OLS \(R^2\), their mathematical stability, and their sensitivity to the base rate. He also differentiates:
+
+- **R² analogs** (based on continuous predicted probabilities)  
+- **Predictive efficiency indexes** (based on discrete 0/1 classifications)
+
+ **2.2 Notation**
+ \(n\): sample size, \(y\): binary response, \(\hat{p}\): predicted probability, \(\bar{y}\): sample mean, \(L_0\), \(L_M\): likelihoods of null and full models, \(GM = -2(\ln L_0 - \ln L_M)\), SSE, SST: squared error components  
+
+
+ **2.3 R² Analogs**
+
+**OLS Analog**\[R^2_0 = 1 - \frac{\sum (y - \hat{p})^2}{\sum (y - \bar{y})^2}\]
+Conceptually inconsistent with likelihood-based estimation.
+
+**McFadden’s Likelihood Ratio** \[R^2_L = 1 - \frac{\ln L_M}{\ln L_0}\]
+Represents proportional reduction in entropy.  
+
+**Menard identifies this as the strongest analog to OLS \(R^2\).**
+
+**Cox–Snell **\[R^2_G = 1 - \left( \frac{L_0}{L_M} \right)^{2/n}\]
+Bounded strictly below 1.
+
+**Nagelkerke**\[R^2_N = \frac{R^2_G}{1 - L_0^{2/n}}\]
+A rescaled version of Cox–Snell; highly sensitive to prevalence.
+
+**Contingency Coefficient**\[R^2_C = \frac{GM}{GM + n}\]
+Limited by sample size and cannot reach 1.
+
+ **2.4 Predictive Efficiency Indexes**
+
+Based on classification tables:
+
+**Proportionate Reduction in Error** \[A_p = 1 - \frac{\text{model errors}}{\text{null errors}}\]
+
+**Index \(r_p\)** Less dependent on base rate than **\(A_p\)**.
+
+**Index \(\phi_p\)** Highly sensitive to prevalence.
+
+ **2.5 Summary of Menard’s Conclusions**
+ 
+ Many pseudo-\(R^2\) measures are strongly influenced by the base rate. **R² analogs and predictive indexes** may lead to contradictory conclusions. **The most stable measures are McFadden’s \(R^2_L\) and index \(r_p\)**  
+
+
+**3. Results**
+
+ **3.1 Simulation Design**
+
+Three datasets of size \(n = 5000\) were generated using the same underlying linear predictor structure but different base rates (1%, 10%, 50%). Logistic models of the form  
+\[y \sim x_1 + x_2 + x_3\]
+were fitted, and five pseudo-\(R^2\) measures along with three predictive indexes were computed for each scenario.
+
+```{r echo=FALSE}
+library(tibble)
+
+results_clean <- tibble::tribble(
+  ~scenario, ~base_rate, ~r2_ols, ~r2_mcfadden, ~r2_cox_snell, ~r2_nagelkerke, ~r2_contingency, ~a_p, ~r_p, ~phi_p,
+  "base1pct", 0.01, 0.028, 0.155, 0.017, 0.162, 0.017, 0.000, -Inf, NA,
+  "base10pct", 0.10, 0.102, 0.124, 0.075, 0.161, 0.073, 0.008, 0.044, 0.112,
+  "base50pct", 0.50, 0.205, 0.160, 0.199, 0.265, 0.182, 0.375, 0.389, 0.389
+)
+
+knitr::kable(
+  results_clean,
+  digits = 3,
+  caption = "Pseudo-R² measures and predictive efficiency indexes across simulation scenarios."
+)
+```
+
+**3.2 Behavior of the Pseudo-\(R^2\) Measures**
+
+**McFadden’s \(R^2\)** remains relatively stable (0.12–0.16) across all base rates, consistent with Menard’s findings. **Nagelkerke’s \(R^2\) **
+ shows substantial sensitivity: values remain similar for 1% and 10% but increase sharply at 50%. **Cox–Snell and contingency measures consistently** underestimate fit and remain constrained by their theoretical bounds. The **OLS analog** increases mechanically with the base rate and lacks a meaningful likelihood interpretation.
+
+
+ **3.3 Classification-Based Performance Indices**
+
+Classification-based measures are even more sensitive to prevalence. At 1% prevalence, all indexes break down: 
+**\(A_p\)**=0, **\(r_p\)**= −∞,  **\(ϕ_p\)** =−∞ undefined. At 10%, values remain small but interpretable. At 50%, all three indexes show improved performance, reflecting increased separability.
+
+
+**3.4 Summary of Findings**
+
+Overall, the results strongly align with the conclusions reported by Menard (2000):
+
+**McFadden’s \(R^2\)** is the most stable and reliable measure across different base rates. **Nagelkerke’s \(R^2\)** increases sharply with prevalence and should be interpreted with caution when comparing datasets with differing base rates. **Cox–Snell and contingency** coefficients systematically underestimate model fit. **Classification-based indices** (\(A_p\),\(r_p\),\(ϕ_p\)) are highly sensitive to class imbalance and provide limited insight when the outcome distribution is extremely skewed.These results confirm that, among the measures evaluated, **the McFadden \(R^2\)** is the most reliable choice for evaluating logistic models in different prevalence contexts.
+
+
+
+**4. Discussion and Conclusion**
+This project reproduced and extended Menard’s evaluation of pseudo-\(R^2\) measures in logistic regression. By simulating datasets with identical structural relationships but different prevalence levels, we observed substantial variation in how pseudo-\(R^2\)statistics respond to changes in outcome distribution.
+
+**McFadden’s \(R^2\)** emerged as the most stable and conceptually coherent measure. In contrast, Nagelkerke’s correction magnifies the effect of prevalence, limiting its use for comparing samples with different outcome frequencies. Cox–Snell and contingency-based measures remain constrained by theoretical bounds that limit interpretability. 
+
+Predictive efficiency indexes exhibit extreme sensitivity to class imbalance, confirming their limitations in rare-event settings. These results reinforce Menard’s recommendation to favor **McFadden’s \(R^2\)** when evaluating logistic models, particularly when comparing across datasets with different base rates.
+
+
+**5. References**
+
+Menard, S. (2000). Coefficients of determination for multiple logistic regression analysis. *The American Statistician, 54*(1), 17–24. https://doi.org/10.1080/00031305.2000.10474502
+
+
+**R Code**
+
+```{r,warning=FALSE}
+
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(broom)
+  library(DescTools)
+  library(data.table)
+})
+
+set.seed(2025)
+
+#simulate dataset with target base rate (p = number of predictors)
+simulate_logistic <- function(n = 5000, p = 3, beta = c(0.6, -0.8, 0.4), base_rate = 0.1, sigma_x = 1) {
+  x <- matrix(rnorm(n * length(beta), sd = sigma_x), nrow = n, ncol = length(beta))
+  linpred <- as.numeric(x %*% beta)
+  # find intercept that gives approx desired base rate
+  find_intercept <- function(target) {
+    f <- function(a) mean(1 / (1 + exp(-(a + linpred)))) - target
+    stats::uniroot(f, c(-20, 20))$root
+  }
+  a0 <- find_intercept(base_rate)
+  p_hat <- 1 / (1 + exp(-(a0 + linpred)))
+  y <- rbinom(n, 1, p_hat)
+  df <- as_tibble(x)
+  names(df) <- paste0("x", seq_len(ncol(x)))
+  df <- df |> mutate(y = y, p_true = p_hat)
+  attr(df, "intercept") <- a0
+  df
+}
+```
+
+```{r}
+
+# R2 calculators 
+# OLS analog: 1 - SSE/SST with y in {0,1}
+r2_ols_analog <- function(y, p_hat) {
+  sse <- sum((y - p_hat)^2)
+  sst <- sum((y - mean(y))^2)
+  1 - sse / sst
+}
+```
+
+```{r}
+# McFadden (likelihood ratio R2)
+r2_mcfadden <- function(model) {
+  ll_full <- as.numeric(logLik(model))
+  # null model
+  nullm <- update(model, . ~ 1)
+  ll_null <- as.numeric(logLik(nullm))
+  1 - (ll_full / ll_null)
+}
+```
+
+```{r}
+# Cox-Snell
+r2_cox_snell <- function(model) {
+  ll_full <- as.numeric(logLik(model))
+  nullm <- update(model, . ~ 1)
+  ll_null <- as.numeric(logLik(nullm))
+  1 - exp((2 / length(model$fitted.values)) * (ll_null - ll_full))
+}
+```
+
+```{r}
+# Nagelkerke
+r2_nagelkerke <- function(model) {
+  ll_full <- as.numeric(logLik(model))
+  ll_null <- as.numeric(logLik(update(model, . ~ 1)))
+  n <- length(model$fitted.values)
+
+  # Cox-Snell
+  r2_cs <- 1 - exp((2/n) * (ll_null - ll_full))
+
+  # maximum possible Cox–Snell
+  denom <- 1 - exp((2/n) * ll_null)
+
+  if (denom <= 0) return(NA_real_)  # rare case
+
+  r2_cs / denom
+}
+
+```
+
+```{r}
+# Contingency coefficient R2: GM / (GM + n)
+r2_contingency <- function(model) {
+  ll_full <- as.numeric(logLik(model))
+  nullm <- update(model, . ~ 1)
+  ll_null <- as.numeric(logLik(nullm))
+  gm <- -2 * (ll_null - ll_full)
+  n <- length(model$fitted.values)
+  gm / (gm + n)
+}
+```
+
+```{r}
+# Predictive efficiency indexes from classification table
+predictive_indexes <- function(y, p_hat, cutoff = 0.5) {
+  pred_class <- as.integer(p_hat >= cutoff)
+  tab <- table(observed = y, predicted = pred_class)
+  # errors of the model
+  errors_model <- sum(tab) - sum(diag(tab))
+  # errors without model: predict modal category
+  modal <- as.integer(which.max(table(y)) - 1) # 0/1
+  errors_null <- sum(y != modal)
+  a_p <- 1 - (errors_model / errors_null) # proportionate reduction in error
+ 
+  n <- length(y)
+  f_zz <- sum(diag(tab))
+  row_sums <- rowSums(tab)
+  col_sums <- colSums(tab)
+  E_fzz <- sum(row_sums * col_sums) / n^2 * n # = sum(row*col)/n
+  r_p <- (f_zz - E_fzz) / (n - E_fzz)
+ 
+  # phi = (TP*TN - FP*FN) / sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))
+  TP <- ifelse("1" %in% rownames(tab) & "1" %in% colnames(tab), tab["1","1"], 0)
+  TN <- ifelse("0" %in% rownames(tab) & "0" %in% colnames(tab), tab["0","0"], 0)
+  FP <- ifelse("0" %in% rownames(tab) & "1" %in% colnames(tab), tab["0","1"], 0)
+  FN <- ifelse("1" %in% rownames(tab) & "0" %in% colnames(tab), tab["1","0"], 0)
+  
+  TP <- as.numeric(TP)
+  TN <- as.numeric(TN)
+  FP <- as.numeric(FP)
+  FN <- as.numeric(FN)
+
+  denom <- sqrt((TP+FP) * (TP+FN) * (TN+FP) * (TN+FN))
+  phi_p <- ifelse(denom == 0, NA_real_, (TP*TN - FP*FN) / denom)
+  tibble(a_p = a_p, r_p = r_p, phi_p = phi_p,
+         n = n, errors_model = errors_model, errors_null = errors_null)
+}
+
+
+```
+
+
+```{r,warning=FALSE}
+#simulations
+scenarios <- tibble(
+  scenario = c("base1pct", "base10pct", "base50pct"),
+  base_rate = c(0.01, 0.10, 0.50)
+)
+
+results_list <- list()
+
+for (i in seq_len(nrow(scenarios))) {
+  sc <- scenarios$scenario[i]
+  br <- scenarios$base_rate[i]
+  df <- simulate_logistic(n = 5000, beta = c(0.8, -0.6, 0.5), base_rate = br)
+  #logistic model
+  fit <- glm(y ~ x1 + x2 + x3, data = df, family = binomial(link = "logit"))
+  p_hat <- predict(fit, type = "response")
+  # compute R2s
+  r0 <- r2_ols_analog(df$y, p_hat)
+  r_mcf <- r2_mcfadden(fit)
+  r_cs <- r2_cox_snell(fit)
+  r_nag <- r2_nagelkerke(fit)
+  r_cont <- r2_contingency(fit)
+  idx <- predictive_indexes(df$y, p_hat, cutoff = 0.5)
+  res <- tibble(
+    scenario = sc,
+    base_rate = br,
+    n = nrow(df),
+    r2_ols = r0,
+    r2_mcfadden = r_mcf,
+    r2_cox_snell = r_cs,
+    r2_nagelkerke = r_nag,
+    r2_contingency = r_cont
+  ) |> bind_cols(idx)
+  results_list[[sc]] <- list(df = df, fit = fit, result = res)
+}
+```
+
+```{r}
+results <- map_dfr(results_list, ~ .x$result)
+
+# Table for report
+results |> mutate(across(where(is.numeric), ~ round(., 3))) |> print()
+
+
+```
+
+
+
+
+
+
+
+
